@@ -1,0 +1,5 @@
+# Format: [P0-P3] open|blocked|watch|done - summary @owner due:YYYY-MM-DD
+[P0] blocked - Payment authorization fails for cards issued in EU @maya due:2026-10-07
+[P1] open - Compare gateway decline codes with last week's release @leo due:2026-10-08
+[P2] watch - Track checkout conversion after the routing rollback @sana due:2026-10-09
+[P2] done - Add a dashboard alert for authorization decline spikes @maya due:2026-10-06
