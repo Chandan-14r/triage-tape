@@ -12,12 +12,22 @@ def main() -> int:
     parser.add_argument("input", type=Path, help="Source .txt file")
     parser.add_argument("-o", "--output", type=Path, help="Write Markdown to this file (defaults to stdout)")
     parser.add_argument("--title", default="Incident handoff", help="Handoff title")
+    parser.add_argument(
+        "--since",
+        type=Path,
+        metavar="PREVIOUS_NOTES",
+        help="Compare against the previous shift's notes and highlight changes",
+    )
     args = parser.parse_args()
     try:
         items, warnings = parse_notes(args.input.read_text(encoding="utf-8"))
+        previous_items = None
+        if args.since:
+            previous_items, previous_warnings = parse_notes(args.since.read_text(encoding="utf-8"))
+            warnings += [f"Previous notes: {warning}" for warning in previous_warnings]
     except OSError as error:
         parser.error(str(error))
-    result = build_handoff(items, args.title)
+    result = build_handoff(items, args.title, previous_items=previous_items)
     if args.output:
         args.output.write_text(result, encoding="utf-8")
         print(f"Wrote {args.output}")

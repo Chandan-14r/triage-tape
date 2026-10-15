@@ -21,3 +21,26 @@ def test_handoff_prioritizes_active_work_and_flags_gaps():
 def test_empty_handoff_is_still_useful():
     report = build_handoff([], "Quiet shift", date(2026, 10, 7))
     assert "No active work. Nice handoff." in report
+
+
+def test_handoff_can_surface_shift_changes():
+    previous, _ = parse_notes(
+        "[P0] open - Payments fail @maya\n[P1] open - Inspect gateway logs @leo"
+    )
+    current, _ = parse_notes(
+        "[P0] done - Payments fail @maya\n[P1] open - Inspect gateway logs @leo\n"
+        "[P1] blocked - Confirm card issuer impact @sana"
+    )
+    report = build_handoff(current, "Checkout incident", date(2026, 10, 7), previous)
+    assert "## Since the previous handoff" in report
+    assert "### New work" in report
+    assert "Confirm card issuer impact" in report
+    assert "### No longer active" in report
+    assert "Payments fail — completed" in report
+
+
+def test_handoff_reports_when_a_shift_has_no_active_changes():
+    previous, _ = parse_notes("[P1] open - Inspect gateway logs @leo")
+    current, _ = parse_notes("[P1] watch - Inspect gateway logs @leo")
+    report = build_handoff(current, "Checkout incident", date(2026, 10, 7), previous)
+    assert "No active-work changes since the previous handoff." in report

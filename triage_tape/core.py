@@ -28,6 +28,11 @@ class Item:
     def is_open(self) -> bool:
         return self.state != "done"
 
+    @property
+    def identity(self) -> str:
+        """A stable, human-readable key for comparing two handoffs."""
+        return " ".join(self.summary.casefold().split())
+
 
 def parse_notes(text: str) -> tuple[list[Item], list[str]]:
     """Return recognized items and actionable formatting warnings."""
@@ -51,7 +56,12 @@ def parse_notes(text: str) -> tuple[list[Item], list[str]]:
     return items, warnings
 
 
-def build_handoff(items: list[Item], title: str, today: date | None = None) -> str:
+def build_handoff(
+    items: list[Item],
+    title: str,
+    today: date | None = None,
+    previous_items: list[Item] | None = None,
+) -> str:
     """Render a decision-ready Markdown handoff."""
     today = today or date.today()
     active = sorted((item for item in items if item.is_open), key=lambda item: (PRIORITY[item.priority], item.due or "9999-99-99"))
@@ -73,6 +83,28 @@ def build_handoff(items: list[Item], title: str, today: date | None = None) -> s
     if blocked:
         lines += ["", "## Blockers to resolve", ""]
         lines += [f"- {item.summary} ({'@' + item.owner if item.owner else 'owner needed'})" for item in blocked]
+    if previous_items is not None:
+        previous_active = {item.identity: item for item in previous_items if item.is_open}
+        current_active = {item.identity: item for item in active}
+        current_by_identity = {item.identity: item for item in items}
+        new_items = [item for item in active if item.identity not in previous_active]
+        no_longer_active = [
+            item for key, item in previous_active.items() if key not in current_active
+        ]
+        lines += ["", "## Since the previous handoff", ""]
+        if new_items:
+            lines.append("### New work")
+            lines += [f"- **{item.priority.upper()}**: {item.summary}" for item in new_items]
+        if no_longer_active:
+            if new_items:
+                lines.append("")
+            lines.append("### No longer active")
+            for item in no_longer_active:
+                current = current_by_identity.get(item.identity)
+                status = "completed" if current and not current.is_open else "removed from this log"
+                lines.append(f"- {item.summary} — {status}")
+        if not new_items and not no_longer_active:
+            lines.append("- No active-work changes since the previous handoff.")
     if done:
         lines += ["", "## Closed since last handoff", ""]
         lines += [f"- {item.summary}" for item in done]

@@ -37,6 +37,18 @@ Input uses a compact, forgiving format:
 
 The tool writes a Markdown handoff and reports any unreadable lines to standard error.
 
+## Make shift changes obvious
+
+Pass the previous shift's notes with `--since` to add a concise comparison section to the handoff. It calls out new active work and work that is no longer active, distinguishing items marked `done` from items removed from the current log.
+
+```bash
+triage-tape examples/checkout-incident.txt \
+  --since examples/previous-checkout-incident.txt \
+  --title "Checkout incident" -o handoff.md
+```
+
+Items are matched by their summary, so routine state, owner, priority, and due-date updates remain part of the same thread of work instead of creating noisy false changes.
+
 ## Development
 
 ```bash

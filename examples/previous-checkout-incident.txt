@@ -1,0 +1,4 @@
+# Notes from the previous checkout shift
+[P0] open - Payment authorization fails for cards issued in EU @maya due:2026-10-07
+[P1] open - Compare gateway decline codes with last week's release @leo due:2026-10-08
+[P2] open - Confirm issuer impact with the payments partner @sana due:2026-10-08
