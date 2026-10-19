@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 import sys
 
-from .core import build_handoff, parse_notes
+from .core import build_handoff, build_handoff_json, parse_notes
 
 
 def main() -> int:
@@ -12,6 +12,12 @@ def main() -> int:
     parser.add_argument("input", type=Path, help="Source .txt file")
     parser.add_argument("-o", "--output", type=Path, help="Write Markdown to this file (defaults to stdout)")
     parser.add_argument("--title", default="Incident handoff", help="Handoff title")
+    parser.add_argument(
+        "--format",
+        choices=("markdown", "json"),
+        default="markdown",
+        help="Output format (default: markdown)",
+    )
     parser.add_argument(
         "--since",
         type=Path,
@@ -27,7 +33,11 @@ def main() -> int:
             warnings += [f"Previous notes: {warning}" for warning in previous_warnings]
     except OSError as error:
         parser.error(str(error))
-    result = build_handoff(items, args.title, previous_items=previous_items)
+    result = (
+        build_handoff_json(items, args.title, previous_items=previous_items)
+        if args.format == "json"
+        else build_handoff(items, args.title, previous_items=previous_items)
+    )
     if args.output:
         args.output.write_text(result, encoding="utf-8")
         print(f"Wrote {args.output}")

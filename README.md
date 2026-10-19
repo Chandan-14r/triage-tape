@@ -49,6 +49,19 @@ triage-tape examples/checkout-incident.txt \
 
 Items are matched by their summary, so routine state, owner, priority, and due-date updates remain part of the same thread of work instead of creating noisy false changes.
 
+## Feed an incident dashboard or bot
+
+Use `--format json` when a workflow needs the same decision-ready signal in a structured form. The JSON includes sorted active and closed items, a concise blocked/overdue/unowned summary, and (with `--since`) explicit new and no-longer-active work.
+
+```bash
+triage-tape examples/checkout-incident.txt \
+  --since examples/previous-checkout-incident.txt \
+  --title "Checkout incident" \
+  --format json -o handoff.json
+```
+
+This makes it straightforward to post a focused update to an incident bot, save a durable shift record, or populate a lightweight operations dashboard without re-parsing Markdown.
+
 ## Development
 
 ```bash
@@ -68,7 +81,7 @@ docs/              a visual preview of generated output
 
 ## Future ideas
 
-- Optional JSON and HTML output
+- Optional HTML output
 - Configurable state names for support and release workflows
 - A `--since` mode for shift-to-shift deltas
 
