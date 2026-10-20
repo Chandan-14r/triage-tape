@@ -2,7 +2,7 @@ from datetime import date
 
 import json
 
-from triage_tape.core import build_handoff, build_handoff_json, parse_notes
+from triage_tape.core import build_handoff, build_handoff_html, build_handoff_json, parse_notes
 
 
 def test_parses_notes_and_reports_unknown_lines():
@@ -58,3 +58,12 @@ def test_json_handoff_is_sorted_and_reports_machine_readable_shift_changes():
     assert payload["summary"] == {"active": 2, "blocked": 1, "overdue": 0, "unowned": 1, "closed": 1}
     assert [item["summary"] for item in payload["active_items"]] == ["Confirm issuer impact", "Watch dashboard"]
     assert payload["changes_since_previous"]["no_longer_active"][0]["outcome"] == "completed"
+
+
+def test_html_handoff_is_standalone_and_escapes_incident_content():
+    items, _ = parse_notes("[P0] blocked - <Payment> & authorization fails @maya due:2026-10-01")
+    report = build_handoff_html(items, "Checkout <incident>", date(2026, 10, 7))
+    assert report.startswith("<!doctype html>")
+    assert "Checkout &lt;incident&gt;" in report
+    assert "&lt;Payment&gt; &amp; authorization fails" in report
+    assert "Blocked" in report

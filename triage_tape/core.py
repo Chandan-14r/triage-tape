@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from html import escape
 import json
 import re
 
@@ -167,3 +168,68 @@ def build_handoff_json(
             "no_longer_active": no_longer_active,
         }
     return json.dumps(payload, indent=2) + "\n"
+
+
+def build_handoff_html(
+    items: list[Item],
+    title: str,
+    today: date | None = None,
+    previous_items: list[Item] | None = None,
+) -> str:
+    """Render a polished, standalone HTML incident handoff."""
+    today = today or date.today()
+    active = sorted(
+        (item for item in items if item.is_open),
+        key=lambda item: (PRIORITY[item.priority], item.due or "9999-99-99"),
+    )
+    done = [item for item in items if not item.is_open]
+    blocked = [item for item in active if item.state == "blocked"]
+    unowned = [item for item in active if not item.owner]
+    overdue = [item for item in active if item.due and item.due < today.isoformat()]
+
+    def card(label: str, value: int, tone: str = "") -> str:
+        return f'<div class="metric {tone}"><span>{escape(label)}</span><strong>{value}</strong></div>'
+
+    def item_row(item: Item) -> str:
+        owner = f"@{escape(item.owner)}" if item.owner else "Owner needed"
+        owner_class = "missing" if not item.owner else ""
+        due = f'<span class="due">Due {escape(item.due)}</span>' if item.due else ""
+        return (
+            '<li class="work-item">'
+            f'<span class="priority {escape(item.priority)}">{escape(item.priority.upper())}</span>'
+            f'<div class="work-copy"><strong>{escape(item.summary)}</strong>'
+            f'<span class="meta"><span class="state {escape(item.state)}">{escape(item.state)}</span>'
+            f'<span class="owner {owner_class}">{owner}</span>{due}</span></div></li>'
+        )
+
+    changes = ""
+    if previous_items is not None:
+        previous_active = {item.identity: item for item in previous_items if item.is_open}
+        current_active = {item.identity: item for item in active}
+        current_by_identity = {item.identity: item for item in items}
+        new_items = [item for item in active if item.identity not in previous_active]
+        no_longer_active = [item for key, item in previous_active.items() if key not in current_active]
+        change_rows = []
+        for item in new_items:
+            change_rows.append(f'<li><b>New</b> {escape(item.summary)}</li>')
+        for item in no_longer_active:
+            current = current_by_identity.get(item.identity)
+            outcome = "Completed" if current and not current.is_open else "Removed from log"
+            change_rows.append(f'<li><b>{outcome}</b> {escape(item.summary)}</li>')
+        if not change_rows:
+            change_rows.append("<li>No active-work changes since the previous handoff.</li>")
+        changes = '<section><h2>Since the previous handoff</h2><ul class="changes">' + "".join(change_rows) + "</ul></section>"
+
+    work = "".join(item_row(item) for item in active) or '<li class="empty">No active work. Nice handoff.</li>'
+    closed = ""
+    if done:
+        closed = '<section><h2>Closed since last handoff</h2><ul class="closed">' + "".join(
+            f"<li>{escape(item.summary)}</li>" for item in done
+        ) + "</ul></section>"
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{escape(title)} · Triage Tape</title><style>
+:root{{--ink:#172033;--muted:#64748b;--line:#e2e8f0;--canvas:#f8fafc;--card:#fff;--red:#be123c;--amber:#b45309;--blue:#1d4ed8;--green:#047857}}*{{box-sizing:border-box}}body{{margin:0;background:var(--canvas);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,sans-serif}}main{{max-width:900px;margin:0 auto;padding:56px 24px 40px}}header{{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:28px}}h1{{font-size:clamp(2rem,5vw,3.25rem);line-height:1.05;letter-spacing:-.04em;margin:0}}h2{{font-size:1.05rem;margin:0 0 14px}}.eyebrow,.meta{{color:var(--muted);font-size:.86rem}}.metrics{{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}}.metric,section{{background:var(--card);border:1px solid var(--line);border-radius:14px}}.metric{{padding:15px 16px}}.metric span{{display:block;color:var(--muted);font-size:.78rem}}.metric strong{{font-size:1.65rem}}.metric.danger strong{{color:var(--red)}}.metric.warning strong{{color:var(--amber)}}section{{padding:22px;margin-top:18px}}ul{{list-style:none;padding:0;margin:0}}.work-item{{display:flex;gap:13px;padding:14px 0;border-top:1px solid var(--line)}}.work-item:first-child{{border-top:0;padding-top:0}}.work-copy{{display:grid;gap:5px}}.priority{{font-size:.72rem;font-weight:800;letter-spacing:.05em;min-width:30px;padding-top:2px}}.p0{{color:var(--red)}}.p1{{color:var(--amber)}}.p2,.p3{{color:var(--blue)}}.state{{text-transform:capitalize}}.state.blocked{{color:var(--red);font-weight:700}}.meta{{display:flex;gap:10px;flex-wrap:wrap}}.owner.missing{{color:var(--red);font-weight:600}}.changes li,.closed li{{padding:7px 0;border-top:1px solid var(--line)}}.changes li:first-child,.closed li:first-child{{border-top:0;padding-top:0}}.empty{{color:var(--muted)}}footer{{color:var(--muted);font-size:.8rem;text-align:center;margin-top:32px}}@media(max-width:560px){{main{{padding:34px 16px}}header{{display:block}}header .eyebrow{{margin-top:10px}}.metrics{{grid-template-columns:repeat(2,1fr)}}}}</style></head>
+<body><main><header><div><p class="eyebrow">INCIDENT HANDOFF · {today.isoformat()}</p><h1>{escape(title)}</h1></div><p class="eyebrow">Prepared by Triage Tape</p></header>
+<div class="metrics">{card("Active work", len(active))}{card("Blocked", len(blocked), "danger")}{card("Overdue", len(overdue), "warning")}{card("Needs owner", len(unowned), "danger")}</div>
+<section><h2>Open work</h2><ul>{work}</ul></section>{changes}{closed}<footer>Generated by Triage Tape · Decision-ready incident handoffs</footer></main></body></html>\n"""

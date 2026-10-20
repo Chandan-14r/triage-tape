@@ -4,17 +4,17 @@ import argparse
 from pathlib import Path
 import sys
 
-from .core import build_handoff, build_handoff_json, parse_notes
+from .core import build_handoff, build_handoff_html, build_handoff_json, parse_notes
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Turn plain-text triage notes into a Markdown handoff.")
     parser.add_argument("input", type=Path, help="Source .txt file")
-    parser.add_argument("-o", "--output", type=Path, help="Write Markdown to this file (defaults to stdout)")
+    parser.add_argument("-o", "--output", type=Path, help="Write output to this file (defaults to stdout)")
     parser.add_argument("--title", default="Incident handoff", help="Handoff title")
     parser.add_argument(
         "--format",
-        choices=("markdown", "json"),
+        choices=("markdown", "html", "json"),
         default="markdown",
         help="Output format (default: markdown)",
     )
@@ -33,11 +33,12 @@ def main() -> int:
             warnings += [f"Previous notes: {warning}" for warning in previous_warnings]
     except OSError as error:
         parser.error(str(error))
-    result = (
-        build_handoff_json(items, args.title, previous_items=previous_items)
-        if args.format == "json"
-        else build_handoff(items, args.title, previous_items=previous_items)
-    )
+    renderers = {
+        "markdown": build_handoff,
+        "html": build_handoff_html,
+        "json": build_handoff_json,
+    }
+    result = renderers[args.format](items, args.title, previous_items=previous_items)
     if args.output:
         args.output.write_text(result, encoding="utf-8")
         print(f"Wrote {args.output}")

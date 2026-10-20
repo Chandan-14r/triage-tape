@@ -16,6 +16,7 @@ During an incident, notes accumulate faster than shared context. Triage Tape kee
 - Priority-aware ordering from P0 through P3
 - Clear blocker, overdue, and unowned-work signals
 - Markdown output suitable for a pull request, Slack, or incident channel
+- Self-contained HTML handoffs for a polished, shareable status page
 - Helpful warnings for malformed lines, without discarding good entries
 
 ## Quick start
@@ -62,6 +63,19 @@ triage-tape examples/checkout-incident.txt \
 
 This makes it straightforward to post a focused update to an incident bot, save a durable shift record, or populate a lightweight operations dashboard without re-parsing Markdown.
 
+## Share a polished handoff page
+
+Use `--format html` to produce a responsive, standalone status page—handy for an incident room display, a short-lived internal link, or attaching to a postmortem. It needs no external assets and keeps blocked, overdue, and unowned work visually prominent.
+
+```bash
+triage-tape examples/checkout-incident.txt \
+  --since examples/previous-checkout-incident.txt \
+  --title "Checkout incident" \
+  --format html -o handoff.html
+```
+
+Open `handoff.html` in any browser to share a decision-ready snapshot.
+
 ## Development
 
 ```bash
@@ -81,7 +95,6 @@ docs/              a visual preview of generated output
 
 ## Future ideas
 
-- Optional HTML output
 - Configurable state names for support and release workflows
 - A `--since` mode for shift-to-shift deltas
 
